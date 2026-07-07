@@ -11,7 +11,7 @@ cd "$BASE"
 log(){ echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$LOG"; }
 
 # 1. Localiser le fichier maître dans les bibliothèques OneDrive synchronisées
-XLSX=$(find "$HOME/Library/CloudStorage" -maxdepth 8 -name "OAQ-Suivi-plan-strategique.xlsx" 2>/dev/null | head -1)
+XLSX=$(find "$HOME/Library/CloudStorage" -maxdepth 8 -name "OAQ-Suivi-plan-strategique.xlsx" -print -quit 2>/dev/null || true)
 if [ -z "$XLSX" ]; then
   log "fichier SharePoint introuvable localement (bibliothèque « Public » non synchronisée ?)"
   exit 0
