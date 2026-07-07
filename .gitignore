@@ -7,3 +7,4 @@ make_demo.py
 extract.py
 sync.log
 .last-sync-checksum
+bin/

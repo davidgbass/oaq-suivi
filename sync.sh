@@ -10,11 +10,15 @@ cd "$BASE"
 
 log(){ echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$LOG"; }
 
-# 1. Localiser le fichier maître dans les bibliothèques OneDrive synchronisées
-XLSX=$(find "$HOME/Library/CloudStorage" -maxdepth 8 -name "OAQ-Suivi-plan-strategique.xlsx" -print -quit 2>/dev/null || true)
-if [ -z "$XLSX" ]; then
-  log "fichier SharePoint introuvable localement (bibliothèque « Public » non synchronisée ?)"
-  exit 0
+# 1. Localiser le fichier maître (chemin direct d'abord, découverte ensuite)
+XLSX="$HOME/Library/CloudStorage/OneDrive-SharedLibraries-OAPQ/Public - 01-Planification stratégique 2026-2029/OAQ-Suivi-plan-strategique.xlsx"
+if [ ! -r "$XLSX" ]; then
+  ERR=$(ls -la "$XLSX" 2>&1 | tail -1)
+  XLSX=$(find "$HOME/Library/CloudStorage" -maxdepth 8 -name "OAQ-Suivi-plan-strategique.xlsx" -print -quit 2>/dev/null || true)
+  if [ -z "$XLSX" ] || [ ! -r "$XLSX" ]; then
+    log "fichier SharePoint illisible depuis l'agent — détail : $ERR"
+    exit 0
+  fi
 fi
 
 # 2. Ne rien faire si inchangé (OneDrive touche parfois sans modifier)
@@ -22,12 +26,15 @@ SUM=$(shasum -a 256 "$XLSX" | cut -d' ' -f1)
 [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$SUM" ] && exit 0
 
 # 3. Sauvegarde horodatée AVANT toute chose (leçon apprise) — garder les 40 dernières
+# (cat plutôt que cp : les fichiers OneDrive « en ligne seulement » font échouer fcopyfile)
 mkdir -p data/backups
-cp "$XLSX" "data/backups/OAQ-Suivi-$(date '+%Y-%m-%d-%H%M%S').xlsx"
+cat "$XLSX" > "data/backups/OAQ-Suivi-$(date '+%Y-%m-%d-%H%M%S').xlsx"
 ls -t data/backups/OAQ-Suivi-*.xlsx 2>/dev/null | tail -n +41 | xargs rm -f 2>/dev/null || true
 
 # 4. Extraire (snapshot roulant « État courant ») + reconstruire
-PY=$(command -v python3)
+# (python explicite : le python système de launchd n'a pas openpyxl/cryptography)
+PY="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
+[ -x "$PY" ] || PY=$(command -v python3)
 "$PY" extract.py --current --xlsx "$XLSX" >> "$LOG" 2>&1
 "$PY" build.py >> "$LOG" 2>&1
 
