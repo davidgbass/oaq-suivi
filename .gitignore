@@ -5,3 +5,5 @@ __pycache__/
 .DS_Store
 make_demo.py
 extract.py
+sync.log
+.last-sync-checksum
