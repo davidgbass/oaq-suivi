@@ -3,3 +3,5 @@ preview.html
 build.py
 __pycache__/
 .DS_Store
+make_demo.py
+extract.py
