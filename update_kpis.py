@@ -79,13 +79,15 @@ ROWS = [
   "—",
   "Tel quel, ON/OFF (décision présidence 2026-07-08). Véhicule : comité interordres actes professionnels en santé auditive "
   "(OAQ+OOAQ+CMQ, mandaté CA 2025-06-06). Représentant OAQ à nommer. Canal actif (rencontre 18 déc. 2025)."),
- ("K7", "Présence stratégique (nb d'instances avec mandat actif)",
-  "EN SUSPENS", "",
-  "Exercice de vérification en cours",
+ ("K7", "Présence stratégique — activités de représentation externe datées (par exercice)",
+  "23 (2025-2026)", "",
+  "~10 → ~9 → 23  (2023-24 → 2025-26)",
   "",
-  "EN SUSPENS (décision présidence 2026-07-08) : difficile à calculer tel que formulé. Exercice lancé : recension de TOUS les rapports "
-  "d'activité de la présidence 2023-2026 (PV des CA) pour vérifier si l'augmentation de la représentation est réelle et documentable. "
-  "Liste candidate provisoire : CIQ · comité interordres · comité OTC-APAQ · CFOR · coalition RAMQ."),
+  "REDÉFINI (décision présidence 2026-07-08) : on comptabilise les activités de représentation externe DATÉES au rapport de la présidence "
+  "(ministres, tables interordres, organismes, ordres, médias/mémoires, international). Source : recension complète des PV 2023-2026 au wiki. "
+  "2025-26 = 23 activités dont 2 rencontres ministérielles, 1 mémoire parlementaire (PL-15), 1 coalition médiatique. "
+  "PRUDENCE : comparaison fiable À PARTIR de 2025-26 (les PV n'itemisent les rapports de présidence que depuis sept. 2025 — "
+  "les exercices antérieurs sont sous-recensés)."),
  ("C1", "Contexte — Effectif total au tableau",
   "548 (31 mars 2025)", "", "↗ constant (277→548 depuis 2010, +3 en 2024-25)", "—",
   "Sans cible : le stock croît encore, mais le ralentissement est net — contexte du KPI relève K3."),
