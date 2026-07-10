@@ -9,3 +9,4 @@ sync.log
 .last-sync-checksum
 bin/
 graph_pull.py
+update_kpis.py
