@@ -2,6 +2,10 @@
 # sync.sh — SharePoint (via OneDrive) → dashboard GitHub Pages.
 # Durci (audit 2026-07-07) : verrou anti-course, matérialisation avec reprises,
 # validation de structure (via extract.py), notification macOS en cas d'échec.
+# Durci (2026-07-18) : toute copie .xlsx est écrite en fichier temporaire, VALIDÉE
+# (archive zip intègre), puis seulement déplacée en place. Motif : du 11 au 17 juillet
+# 2026, l'éviction OneDrive a produit 7 sauvegardes vides/corrompues — la panne
+# détruisait son propre filet de secours.
 set -uo pipefail
 BASE="/Users/david/oaq-suivi"
 LOG="$BASE/sync.log"
@@ -13,6 +17,27 @@ log(){ echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$LOG"; }
 fail(){ log "ÉCHEC : $*"
   osascript -e "display notification \"$*\" with title \"OAQ Suivi — sync en échec\"" 2>/dev/null || true
   exit 1; }
+
+# valider_xlsx <fichier> — vrai si le fichier est un .xlsx exploitable.
+# Un fichier tronqué par l'éviction OneDrive passe souvent le test de l'en-tête « PK »
+# mais échoue au test d'intégrité de l'archive : les deux sont nécessaires.
+valider_xlsx(){
+  local f="$1"
+  [ -s "$f" ] || return 1                               # non vide
+  [ "$(head -c2 "$f" 2>/dev/null)" = "PK" ] || return 1  # signature zip
+  unzip -tqq "$f" >/dev/null 2>&1 || return 1            # archive intègre
+  unzip -l "$f" 2>/dev/null | grep -q "xl/workbook.xml"  # bien un classeur
+}
+
+# copier_valide <source> <destination> — copie via temporaire, valide, puis met en place.
+# Rien n'atterrit à la destination si la lecture a été interrompue.
+copier_valide(){
+  local src="$1" dst="$2" tmp
+  tmp="$(mktemp "${dst}.tmp.XXXXXX")" || return 1
+  if ! cat "$src" > "$tmp" 2>/dev/null; then rm -f "$tmp"; return 1; fi
+  if ! valider_xlsx "$tmp"; then rm -f "$tmp"; return 1; fi
+  mv -f "$tmp" "$dst"
+}
 
 # 0. Verrou : une seule exécution à la fois (l'agent et une sync manuelle peuvent se croiser)
 # (mkdir est atomique ; flock n'existe pas sur macOS. Verrou > 10 min = périmé, on le reprend.)
@@ -34,8 +59,13 @@ fi
 # 1b. Boîte d'envoi : si data/outbox.xlsx existe, le déposer sur SharePoint (écriture via
 #     le canal autorisé du binaire oaq-sync). Sauvegarde de l'état distant AVANT dépôt.
 if [ -f "$BASE/data/outbox.xlsx" ]; then
-  cat "$XLSX" > "data/backups/OAQ-Suivi-avant-depot-$(date '+%Y-%m-%d-%H%M%S').xlsx" 2>/dev/null \
-    || log "dépôt : sauvegarde préalable illisible (fichier évincé) — poursuite prudente"
+  # L'outbox part écraser SharePoint : la valider AVANT tout, sinon on détruit le distant.
+  valider_xlsx "$BASE/data/outbox.xlsx" \
+    || fail "dépôt refusé : data/outbox.xlsx est corrompue ou incomplète (le fichier SharePoint n'a PAS été touché)"
+  # Sauvegarde préalable de l'état distant — bloquante : sans filet valide, on ne dépose pas.
+  mkdir -p data/backups
+  copier_valide "$XLSX" "data/backups/OAQ-Suivi-avant-depot-$(date '+%Y-%m-%d-%H%M%S').xlsx" \
+    || fail "dépôt refusé : sauvegarde préalable impossible ou corrompue (fichier évincé ?) — épingler le dossier dans le Finder"
   if cat "$BASE/data/outbox.xlsx" > "$XLSX"; then
     rm -f "$BASE/data/outbox.xlsx"
     log "OUTBOX déposée sur SharePoint (via OneDrive)"
@@ -58,8 +88,17 @@ done
 
 # 4. Sauvegarde horodatée AVANT tout (cat : cp échoue sur les fichiers en ligne seulement)
 mkdir -p data/backups
-cat "$XLSX" > "data/backups/OAQ-Suivi-$(date '+%Y-%m-%d-%H%M%S').xlsx" \
-  || fail "sauvegarde impossible (lecture interrompue)"
+copier_valide "$XLSX" "data/backups/OAQ-Suivi-$(date '+%Y-%m-%d-%H%M%S').xlsx" \
+  || fail "sauvegarde impossible ou corrompue (lecture interrompue — fichier évincé ?) — épingler le dossier dans le Finder (Toujours conserver sur cet appareil)"
+
+# 4b. Purge des sauvegardes corrompues héritées (épisode d'éviction du 11-17 juillet 2026).
+#     Elles occupent des places dans la rotation et donnent une fausse impression de filet.
+for b in data/backups/OAQ-Suivi-*.xlsx; do
+  [ -e "$b" ] || continue
+  valider_xlsx "$b" || { rm -f "$b"; log "sauvegarde corrompue purgée : $(basename "$b")"; }
+done
+
+# 4c. Rotation : ne conserver que les 40 plus récentes (toutes valides à ce stade)
 ls -t data/backups/OAQ-Suivi-*.xlsx 2>/dev/null | tail -n +41 | xargs rm -f 2>/dev/null || true
 
 # 5. Extraire (valide aussi la structure du fichier) + reconstruire
