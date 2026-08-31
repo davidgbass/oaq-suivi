@@ -104,8 +104,14 @@ ls -t data/backups/OAQ-Suivi-*.xlsx 2>/dev/null | tail -n +41 | xargs rm -f 2>/d
 # 5. Extraire (valide aussi la structure du fichier) + reconstruire
 PY="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
 [ -x "$PY" ] || PY=$(command -v python3)
-"$PY" extract.py --current --xlsx "$XLSX" >> "$LOG" 2>&1 \
+#    Un point d'historique par date de calendrier (écrasé si la sync repasse le même
+#    jour) — remplace l'ancien snapshot CURRENT.json à sens unique, qui écrasait
+#    « aujourd'hui » à chaque sync et ne laissait jamais de trace des dates
+#    intermédiaires : le curseur restait coincé entre l'ancienne baseline et
+#    « maintenant » et n'illustrait jamais la progression réelle.
+"$PY" extract.py --date "$(date '+%Y-%m-%d')" --xlsx "$XLSX" >> "$LOG" 2>&1 \
   || fail "extraction refusée (structure du fichier modifiée ? voir sync.log)"
+rm -f data/snapshots/CURRENT.json
 "$PY" build.py >> "$LOG" 2>&1 || fail "génération du dashboard en erreur"
 
 # 6. Publier seulement si la page a changé
