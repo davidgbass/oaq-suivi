@@ -10,3 +10,5 @@ sync.log
 bin/
 graph_pull.py
 update_kpis.py
+build_parties.py
+parties-preview.html
